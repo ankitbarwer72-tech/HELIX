@@ -61,7 +61,7 @@ class IntentEngine:
 
     PHRASE_REPLACEMENTS = {
 
-        # Whisper corrections
+        # Whisper speech corrections
         "you tube": "youtube",
         "your tube": "youtube",
         "utube": "youtube",
@@ -79,10 +79,16 @@ class IntentEngine:
         # Brave pronunciation variations
         "bareu salaw": "open brave",
         "bareu salao": "open brave",
+        "bareu salau": "open brave",
         "brave salaw": "open brave",
         "brave salao": "open brave",
         "brave salau": "open brave",
         "brave sala": "open brave",
+
+        # New Whisper variation
+        "brave chalau": "open brave",
+        "brave chalao": "open brave",
+        "brave chala": "open brave",
 
         # Hinglish open commands
         "youtube kholo": "open youtube",
@@ -96,8 +102,6 @@ class IntentEngine:
         "brave kholo": "open brave",
         "brave khol do": "open brave",
         "brave khol": "open brave",
-        "brave chalao": "open brave",
-        "brave chala": "open brave",
 
         "calculator kholo": "open calculator",
         "calculator khol do": "open calculator",
@@ -116,7 +120,7 @@ class IntentEngine:
         "file explorer khol do": "open file explorer",
         "file explorer khol": "open file explorer",
 
-        # Hinglish search commands
+        # Hinglish search
         "google par search karo": "search google",
         "google pe search karo": "search google",
         "google par search kar": "search google",
@@ -230,14 +234,14 @@ class IntentEngine:
 
             return cleaned
 
-        # Preserve Hindi-script text.
+        # Preserve Hindi-script text
         if re.search(r"[\u0900-\u097F]", text):
 
             print(f"Normalized : {text}")
 
             return text
 
-        # Remove punctuation.
+        # Remove punctuation
         text = re.sub(
             r"[^\w\s]",
             " ",
@@ -251,7 +255,7 @@ class IntentEngine:
             text,
         ).strip()
 
-        # Special Hinglish Google search.
+        # Special Hinglish Google search
         google_hinglish = re.match(
             r"^google\s+(?:par|pe)\s+(.+?)\s+search(?:\s+(?:karo|kar|kr))?$",
             text,
