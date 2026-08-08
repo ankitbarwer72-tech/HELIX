@@ -1,4 +1,3 @@
-
 """
 HELIX Whisper Wake Listener
 """
@@ -12,7 +11,11 @@ class SpeechListener:
         "hello helix",
         "hey helix",
         "hi helix",
+        "hello alex",
+        "hey alex",
+        "hi alex",
         "helix",
+        "alex",
         "sun helix",
         "helix suno",
     )

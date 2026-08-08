@@ -6,6 +6,7 @@ Silero VAD based live speech recorder.
 import queue
 import time
 
+import numpy as np
 import sounddevice as sd
 import torch
 from silero_vad import load_silero_vad
@@ -15,6 +16,7 @@ class LiveSpeechListener:
     """Detects speech automatically and returns one complete utterance."""
 
     def __init__(self):
+
         print("Loading Silero VAD...")
 
         self.model = load_silero_vad()
@@ -22,10 +24,22 @@ class LiveSpeechListener:
         self.sample_rate = 16000
         self.block_size = 512
 
+        # Use the actual Conexant microphone.
+        # This prevents HELIX from accidentally using
+        # Stereo Mix or another Windows default input.
+        self.input_device = 1
+
         self.speech_threshold = 0.5
         self.min_speech_duration = 0.25
         self.silence_duration = 0.8
         self.max_recording_duration = 10.0
+
+        device_info = sd.query_devices(self.input_device)
+
+        print(
+            f"HELIX Microphone: "
+            f"[{self.input_device}] {device_info['name']}"
+        )
 
         print("Silero VAD Ready.")
 
@@ -43,6 +57,7 @@ class LiveSpeechListener:
         last_speech_time = None
 
         def callback(indata, frames, time_info, status):
+
             if status:
                 print(status)
 
@@ -51,12 +66,14 @@ class LiveSpeechListener:
         print("\n🎤 Listening...")
 
         with sd.InputStream(
+            device=self.input_device,
             samplerate=self.sample_rate,
             blocksize=self.block_size,
             channels=1,
             dtype="float32",
             callback=callback,
         ):
+
             while True:
 
                 audio = audio_queue.get()
@@ -75,11 +92,14 @@ class LiveSpeechListener:
                 if speech_probability >= self.speech_threshold:
 
                     if not speech_started:
+
                         speech_started = True
                         speech_start_time = current_time
+
                         print("Speech detected...")
 
                     last_speech_time = current_time
+
                     speech_chunks.append(audio.copy())
 
                 elif speech_started:
@@ -112,7 +132,7 @@ class LiveSpeechListener:
             return None
 
         audio_data = torch.from_numpy(
-            __import__("numpy").concatenate(
+            np.concatenate(
                 speech_chunks,
                 axis=0,
             )[:, 0]
