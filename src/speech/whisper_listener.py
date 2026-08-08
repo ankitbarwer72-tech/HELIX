@@ -21,8 +21,6 @@ class WhisperListener:
 
         print("Loading Whisper Small Model...")
 
-        project_root = Path(__file__).resolve().parents[2]
-
         self.model_path = (
             Path.home()
             / ".cache"
@@ -93,11 +91,13 @@ class WhisperListener:
             segments, info = self.model.transcribe(
                 wav_path,
                 language="en",
-                beam_size=5,
-                best_of=5,
+                task="transcribe",
+                beam_size=7,
+                patience=1.0,
                 temperature=0,
-                vad_filter=True,
                 condition_on_previous_text=False,
+                vad_filter=True,
+                without_timestamps=True,
             )
 
             text = " ".join(
