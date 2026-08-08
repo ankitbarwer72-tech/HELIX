@@ -1,106 +1,121 @@
 """
-HELIX Live Speech Listener
-Speech Engine V2
+HELIX Speech Engine V2
+Silero VAD based live speech recorder.
 """
 
-import os
-import tempfile
+import queue
+import time
 
-import numpy as np
 import sounddevice as sd
-from scipy.io.wavfile import write
-from faster_whisper import WhisperModel
+import torch
+from silero_vad import load_silero_vad
 
 
-class LiveListener:
+class LiveSpeechListener:
+    """Detects speech automatically and returns one complete utterance."""
 
     def __init__(self):
+        print("Loading Silero VAD...")
 
-        print("Loading Whisper Small...")
-
-        self.model = WhisperModel(
-            "small",
-            device="cpu",
-            compute_type="int8",
-        )
+        self.model = load_silero_vad()
 
         self.sample_rate = 16000
+        self.block_size = 512
 
-        print("Live Listener Ready.")
+        self.speech_threshold = 0.5
+        self.min_speech_duration = 0.25
+        self.silence_duration = 0.8
+        self.max_recording_duration = 10.0
+
+        print("Silero VAD Ready.")
 
     def listen(self):
+        """
+        Listen until speech is detected and then automatically
+        stop after the speaker becomes silent.
+        """
 
-        print("\n🎤 Speak... (HELIX will stop automatically when you stop speaking)")
+        audio_queue = queue.Queue()
+        speech_chunks = []
 
-        recording = []
-        silence_frames = 0
         speech_started = False
+        speech_start_time = None
+        last_speech_time = None
 
-        silence_threshold = 300
-        silence_limit = 20
+        def callback(indata, frames, time_info, status):
+            if status:
+                print(status)
+
+            audio_queue.put(indata.copy())
+
+        print("\n🎤 Listening...")
 
         with sd.InputStream(
             samplerate=self.sample_rate,
+            blocksize=self.block_size,
             channels=1,
-            dtype="int16",
-        ) as stream:
-
+            dtype="float32",
+            callback=callback,
+        ):
             while True:
 
-                data, _ = stream.read(1024)
+                audio = audio_queue.get()
 
-                recording.append(data.copy())
+                audio_tensor = torch.from_numpy(
+                    audio[:, 0]
+                )
 
-                volume = np.abs(data).mean()
+                speech_probability = self.model(
+                    audio_tensor,
+                    self.sample_rate,
+                ).item()
 
-                if volume > silence_threshold:
+                current_time = time.monotonic()
 
-                    speech_started = True
-                    silence_frames = 0
+                if speech_probability >= self.speech_threshold:
+
+                    if not speech_started:
+                        speech_started = True
+                        speech_start_time = current_time
+                        print("Speech detected...")
+
+                    last_speech_time = current_time
+                    speech_chunks.append(audio.copy())
 
                 elif speech_started:
 
-                    silence_frames += 1
+                    speech_chunks.append(audio.copy())
 
-                if speech_started and silence_frames >= silence_limit:
-                    break
+                    silence_time = (
+                        current_time - last_speech_time
+                    )
 
-        audio = np.concatenate(recording, axis=0)
+                    speech_duration = (
+                        current_time - speech_start_time
+                    )
 
-        with tempfile.NamedTemporaryFile(
-            suffix=".wav",
-            delete=False,
-        ) as temp:
+                    if (
+                        silence_time
+                        >= self.silence_duration
+                        and speech_duration
+                        >= self.min_speech_duration
+                    ):
+                        break
 
-            wav_path = temp.name
+                    if (
+                        speech_duration
+                        >= self.max_recording_duration
+                    ):
+                        break
 
-        write(
-            wav_path,
-            self.sample_rate,
-            audio,
+        if not speech_chunks:
+            return None
+
+        audio_data = torch.from_numpy(
+            __import__("numpy").concatenate(
+                speech_chunks,
+                axis=0,
+            )[:, 0]
         )
 
-        try:
-
-            segments, _ = self.model.transcribe(
-                wav_path,
-                language="en",
-                beam_size=5,
-                best_of=5,
-                vad_filter=True,
-                temperature=0,
-            )
-
-            text = " ".join(
-                segment.text.strip()
-                for segment in segments
-            ).lower().strip()
-
-            print(f"\nYou said: {text}")
-
-            return text
-
-        finally:
-
-            if os.path.exists(wav_path):
-                os.remove(wav_path)
+        return audio_data.numpy()

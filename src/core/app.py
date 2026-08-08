@@ -14,13 +14,15 @@ from src.speech.voice_manager import VoiceManager
 
 
 class HelixApp:
+    """Main HELIX Application."""
 
     def __init__(self):
 
         self.voice = VoiceManager()
         self.microphone = MicrophoneManager()
 
-        # Whisper handles wake word
+        # One Whisper engine is shared between
+        # wake-word detection and commands.
         self.listener = SpeechListener()
 
         self.assistant = Assistant()
@@ -37,7 +39,8 @@ class HelixApp:
         print()
         print("Welcome to HELIX!")
         print(
-            f"Current Time : {datetime.now().strftime('%d-%m-%Y %I:%M:%S %p')}"
+            f"Current Time : "
+            f"{datetime.now().strftime('%d-%m-%Y %I:%M:%S %p')}"
         )
         print()
 
@@ -54,26 +57,29 @@ class HelixApp:
 
         while True:
 
-            # Wait until user says Hello Helix / Hey Helix...
+            # Wait for wake word.
             self.listener.listen_once()
 
             self.voice.wake_response()
 
             while True:
 
+                # Reuse the SAME WhisperListener.
+                # It now uses Silero VAD automatically.
                 command = self.listener.whisper.listen()
 
                 if not command:
                     continue
 
-                # Exit conversation mode
                 if command in (
                     "bye",
                     "goodbye",
                     "sleep",
                     "go to sleep",
                 ):
-                    self.voice.speak("Okay Boss. Going to sleep.")
+                    self.voice.speak(
+                        "Okay Boss. Going to sleep."
+                    )
                     break
 
                 reply, shutdown = self.assistant.handle(command)

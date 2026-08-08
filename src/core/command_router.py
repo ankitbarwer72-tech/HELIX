@@ -59,28 +59,83 @@ class CommandRouter:
 
     def route(self, command: str):
 
-        command = self.intent.clean(command)
+        original_command = (command or "").lower().strip()
+
+        if not original_command:
+            return "empty", None
+
+        # Handle search commands BEFORE filler-word cleanup.
+        # This preserves the word "for" in commands such as:
+        # "search google for demon slayer"
+        for prefix in (
+            "search youtube for ",
+            "youtube search for ",
+            "youtube search ",
+        ):
+            if original_command.startswith(prefix):
+                query = original_command[len(prefix):].strip()
+
+                if query:
+                    return "youtube_search", query
+
+        for prefix in (
+            "search google for ",
+            "google search for ",
+        ):
+            if original_command.startswith(prefix):
+                query = original_command[len(prefix):].strip()
+
+                if query:
+                    return "google_search", query
+
+        # Now perform normal intent cleanup.
+        command = self.intent.clean(original_command)
 
         if not command:
             return "empty", None
 
+        # Search commands after normalization.
         for prefix in (
-            "search youtube for ",
             "youtube search ",
         ):
             if command.startswith(prefix):
-                return "youtube_search", command[len(prefix):].strip()
+                query = command[len(prefix):].strip()
+
+                if query:
+                    return "youtube_search", query
 
         for prefix in (
-            "search google for ",
-            "search for ",
             "google search ",
-            "search ",
         ):
             if command.startswith(prefix):
                 query = command[len(prefix):].strip()
+
                 if query:
                     return "google_search", query
+
+        # Generic "search ..." command.
+        if command.startswith("search "):
+
+            query = command[len("search "):].strip()
+
+            # If the user said:
+            # "search google demon slayer"
+            # treat "google" as the search engine,
+            # not as part of the query.
+            if query.startswith("google "):
+                query = query[len("google "):].strip()
+
+                if query:
+                    return "google_search", query
+
+            if query.startswith("youtube "):
+                query = query[len("youtube "):].strip()
+
+                if query:
+                    return "youtube_search", query
+
+            if query:
+                return "google_search", query
 
         if command == "refresh apps":
             return "refresh_launcher", None
