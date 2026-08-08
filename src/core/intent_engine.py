@@ -92,6 +92,9 @@ class IntentEngine:
         "brave chalao": "open brave",
         "brave chala": "open brave",
 
+        "brave salau": "open brave",
+        "brave sala": "open brave",
+
         "calculator kholo": "open calculator",
         "calculator khol do": "open calculator",
         "calculator khol": "open calculator",

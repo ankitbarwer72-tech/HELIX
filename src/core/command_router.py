@@ -1,5 +1,6 @@
 """
-Convert English, Hindi, and Hinglish voice commands into HELIX actions.
+HELIX Command Router
+Convert normalized voice commands into HELIX actions.
 """
 
 import re
@@ -59,89 +60,97 @@ class CommandRouter:
 
     def route(self, command: str):
 
-        original_command = (command or "").lower().strip()
-
-        if not original_command:
-            return "empty", None
-
-        # Handle search commands BEFORE filler-word cleanup.
-        # This preserves the word "for" in commands such as:
-        # "search google for demon slayer"
-        for prefix in (
-            "search youtube for ",
-            "youtube search for ",
-            "youtube search ",
-        ):
-            if original_command.startswith(prefix):
-                query = original_command[len(prefix):].strip()
-
-                if query:
-                    return "youtube_search", query
-
-        for prefix in (
-            "search google for ",
-            "google search for ",
-        ):
-            if original_command.startswith(prefix):
-                query = original_command[len(prefix):].strip()
-
-                if query:
-                    return "google_search", query
-
-        # Now perform normal intent cleanup.
-        command = self.intent.clean(original_command)
+        command = self.intent.clean(command)
 
         if not command:
             return "empty", None
 
-        # Search commands after normalization.
+        # -------------------------------------------------
+        # YouTube search
+        # -------------------------------------------------
+
         for prefix in (
+            "search youtube for ",
             "youtube search ",
         ):
             if command.startswith(prefix):
+
                 query = command[len(prefix):].strip()
 
                 if query:
                     return "youtube_search", query
+
+        # -------------------------------------------------
+        # Google search
+        #
+        # Handles:
+        # search google for demon slayer
+        # search for demon slayer
+        # search for demon slayer on google
+        # search demon slayer on google
+        # google search demon slayer
+        # search google demon slayer
+        # -------------------------------------------------
+
+        google_search_patterns = [
+
+            r"^search\s+for\s+(.+?)\s+on\s+google$",
+
+            r"^search\s+(.+?)\s+on\s+google$",
+
+            r"^search\s+google\s+for\s+(.+)$",
+
+            r"^search\s+google\s+(.+)$",
+
+            r"^google\s+search\s+(.+)$",
+        ]
+
+        for pattern in google_search_patterns:
+
+            match = re.match(
+                pattern,
+                command,
+            )
+
+            if match:
+
+                query = match.group(1).strip()
+
+                if query:
+                    return "google_search", query
+
+        # -------------------------------------------------
+        # Generic Google search
+        # -------------------------------------------------
 
         for prefix in (
-            "google search ",
+            "search for ",
+            "search ",
         ):
             if command.startswith(prefix):
+
                 query = command[len(prefix):].strip()
 
                 if query:
                     return "google_search", query
 
-        # Generic "search ..." command.
-        if command.startswith("search "):
-
-            query = command[len("search "):].strip()
-
-            # If the user said:
-            # "search google demon slayer"
-            # treat "google" as the search engine,
-            # not as part of the query.
-            if query.startswith("google "):
-                query = query[len("google "):].strip()
-
-                if query:
-                    return "google_search", query
-
-            if query.startswith("youtube "):
-                query = query[len("youtube "):].strip()
-
-                if query:
-                    return "youtube_search", query
-
-            if query:
-                return "google_search", query
+        # -------------------------------------------------
+        # Refresh launcher
+        # -------------------------------------------------
 
         if command == "refresh apps":
             return "refresh_launcher", None
 
+        # -------------------------------------------------
+        # Simple commands
+        # -------------------------------------------------
+
         if command in self.SIMPLE_COMMANDS:
             return self.SIMPLE_COMMANDS[command], None
+
+        # -------------------------------------------------
+        # Open request
+        # -------------------------------------------------
 
         target = self._open_request(command)
 
@@ -153,6 +162,10 @@ class CommandRouter:
 
         if target:
             return "open_named_item", target
+
+        # -------------------------------------------------
+        # Fuzzy simple command matching
+        # -------------------------------------------------
 
         action, score = self._best_simple_match(command)
 
@@ -182,8 +195,14 @@ class CommandRouter:
         for phrase, action in self.SIMPLE_COMMANDS.items():
 
             if fuzz:
-                score = fuzz.ratio(command, phrase)
+
+                score = fuzz.ratio(
+                    command,
+                    phrase,
+                )
+
             else:
+
                 score = (
                     SequenceMatcher(
                         None,
@@ -194,6 +213,7 @@ class CommandRouter:
                 )
 
             if score > best_score:
+
                 best_score = score
                 best_action = action
 
