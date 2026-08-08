@@ -88,6 +88,67 @@ class LauncherIndex:
         if not choices:
             return None, None, 0
 
+                # -----------------------------------------------------
+        # Natural app-name aliases
+        # -----------------------------------------------------
+
+        compact_query = query.replace(" ", "")
+
+        alias_matches = []
+
+        for name in choices:
+
+            compact_name = name.replace(" ", "")
+
+            # Remove trailing version numbers.
+            # Example:
+            # windhawk v1 7 3 -> windhawk
+            base_name = re.sub(
+                r"\bv?\d+(?:\s*\d+)*$",
+                "",
+                name,
+            ).strip()
+
+            compact_base = base_name.replace(" ", "")
+
+            # Exact match after removing spaces.
+            if compact_query == compact_base:
+                alias_matches.append(
+                    (name, 100.0)
+                )
+                continue
+
+            # Exact compact match.
+            if compact_query == compact_name:
+                alias_matches.append(
+                    (name, 100.0)
+                )
+                continue
+
+            # Strong prefix match.
+            if (
+                len(compact_query) >= 5
+                and compact_base.startswith(compact_query)
+            ):
+                alias_matches.append(
+                    (name, 92.0)
+                )
+
+        if alias_matches:
+
+            alias_matches.sort(
+                key=lambda item: item[1],
+                reverse=True,
+            )
+
+            name, score = alias_matches[0]
+
+            return (
+                self.items[name],
+                name,
+                score,
+            )
+
         # -----------------------------------------------------
         # Fuzzy matching
         # -----------------------------------------------------
