@@ -65,14 +65,12 @@ class CommandRouter:
         if not command:
             return "empty", None
 
-        # -------------------------------------------------
         # YouTube search
-        # -------------------------------------------------
-
         for prefix in (
             "search youtube for ",
             "youtube search ",
         ):
+
             if command.startswith(prefix):
 
                 query = command[len(prefix):].strip()
@@ -81,28 +79,37 @@ class CommandRouter:
                     return "youtube_search", query
 
         # -------------------------------------------------
-        # Google search
-        #
-        # Handles:
-        # search google for demon slayer
-        # search for demon slayer
-        # search for demon slayer on google
-        # search demon slayer on google
-        # google search demon slayer
-        # search google demon slayer
+        # Google search patterns
         # -------------------------------------------------
 
         google_search_patterns = [
 
+            # search for demon slayer on google
             r"^search\s+for\s+(.+?)\s+on\s+google$",
 
+            # search demon slayer on google
             r"^search\s+(.+?)\s+on\s+google$",
 
+            # search google for demon slayer
             r"^search\s+google\s+for\s+(.+)$",
 
+            # search google demon slayer
             r"^search\s+google\s+(.+)$",
 
+            # google search demon slayer
             r"^google\s+search\s+(.+)$",
+
+            # google for demon slayer search
+            r"^google\s+for\s+(.+?)\s+search$",
+
+            # google for a demon slayer search
+            r"^google\s+for\s+(?:a\s+)?(.+?)\s+search$",
+
+            # google par demon slayer search
+            r"^google\s+par\s+(.+?)\s+search$",
+
+            # google pe demon slayer search
+            r"^google\s+pe\s+(.+?)\s+search$",
         ]
 
         for pattern in google_search_patterns:
@@ -116,17 +123,28 @@ class CommandRouter:
 
                 query = match.group(1).strip()
 
+                # Remove accidental leading "a".
+                query = re.sub(
+                    r"^a\s+",
+                    "",
+                    query,
+                ).strip()
+
+                # Correct common Whisper phrase.
+                query = query.replace(
+                    "demons layer",
+                    "demon slayer",
+                )
+
                 if query:
                     return "google_search", query
 
-        # -------------------------------------------------
-        # Generic Google search
-        # -------------------------------------------------
-
+        # Generic search
         for prefix in (
             "search for ",
             "search ",
         ):
+
             if command.startswith(prefix):
 
                 query = command[len(prefix):].strip()
@@ -134,24 +152,15 @@ class CommandRouter:
                 if query:
                     return "google_search", query
 
-        # -------------------------------------------------
         # Refresh launcher
-        # -------------------------------------------------
-
         if command == "refresh apps":
             return "refresh_launcher", None
 
-        # -------------------------------------------------
         # Simple commands
-        # -------------------------------------------------
-
         if command in self.SIMPLE_COMMANDS:
             return self.SIMPLE_COMMANDS[command], None
 
-        # -------------------------------------------------
         # Open request
-        # -------------------------------------------------
-
         target = self._open_request(command)
 
         if target in self.FOLDERS:
@@ -163,10 +172,7 @@ class CommandRouter:
         if target:
             return "open_named_item", target
 
-        # -------------------------------------------------
         # Fuzzy simple command matching
-        # -------------------------------------------------
-
         action, score = self._best_simple_match(command)
 
         if score >= 85:

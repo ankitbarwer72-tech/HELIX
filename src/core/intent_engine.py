@@ -25,8 +25,6 @@ class IntentEngine:
         "kindly",
     }
 
-    # Exact Hindi-script commands.
-    # These are handled BEFORE generic text cleanup.
     HINDI_COMMANDS = {
         "यूट्यूब खोलो": "open youtube",
         "यूट्यूब खोल दो": "open youtube",
@@ -63,7 +61,7 @@ class IntentEngine:
 
     PHRASE_REPLACEMENTS = {
 
-        # Speech recognition corrections
+        # Whisper corrections
         "you tube": "youtube",
         "your tube": "youtube",
         "utube": "youtube",
@@ -74,8 +72,17 @@ class IntentEngine:
 
         "chrome browser": "chrome",
 
-        # Common Whisper mistake
         "demons layer": "demon slayer",
+        "demons layers": "demon slayer",
+        "demon's layer": "demon slayer",
+
+        # Brave pronunciation variations
+        "bareu salaw": "open brave",
+        "bareu salao": "open brave",
+        "brave salaw": "open brave",
+        "brave salao": "open brave",
+        "brave salau": "open brave",
+        "brave sala": "open brave",
 
         # Hinglish open commands
         "youtube kholo": "open youtube",
@@ -91,9 +98,6 @@ class IntentEngine:
         "brave khol": "open brave",
         "brave chalao": "open brave",
         "brave chala": "open brave",
-
-        "brave salau": "open brave",
-        "brave sala": "open brave",
 
         "calculator kholo": "open calculator",
         "calculator khol do": "open calculator",
@@ -146,13 +150,14 @@ class IntentEngine:
         "dhoondo": "search",
         "dhund": "search",
 
+        "per": "par",
+
         "karo": "",
         "kar": "",
         "kr": "",
     }
 
     KNOWN_WORDS = [
-        # Websites / apps
         "youtube",
         "google",
         "chrome",
@@ -169,21 +174,18 @@ class IntentEngine:
         "flipkart",
         "wikipedia",
 
-        # Commands
         "open",
         "search",
         "shutdown",
         "bye",
         "help",
 
-        # Search vocabulary
         "demon",
         "slayer",
         "python",
         "movie",
         "video",
 
-        # Desktop items
         "desktop",
         "documents",
         "downloads",
@@ -203,10 +205,7 @@ class IntentEngine:
         if not text:
             return ""
 
-        # -------------------------------------------------
-        # 1. Exact Hindi-script command handling
-        # -------------------------------------------------
-
+        # Exact Hindi commands
         if text in self.HINDI_COMMANDS:
 
             cleaned = self.HINDI_COMMANDS[text]
@@ -215,13 +214,7 @@ class IntentEngine:
 
             return cleaned
 
-        # -------------------------------------------------
-        # 2. Hindi-script Google search
-        #
-        # गूगल पर डेमन स्लेयर सर्च करो
-        # -> search google डेमन स्लेयर
-        # -------------------------------------------------
-
+        # Hindi Google search
         google_hindi = re.match(
             r"^गूगल\s+(?:पर|पे)\s+(.+?)\s+सर्च(?:\s+(?:करो|कर))?$",
             text,
@@ -237,30 +230,14 @@ class IntentEngine:
 
             return cleaned
 
-        # -------------------------------------------------
-        # 3. Detect Hindi-script text.
-        #
-        # Do NOT run Hindi text through English fuzzy
-        # matching. Preserve it as-is.
-        # -------------------------------------------------
-
-        contains_hindi = bool(
-            re.search(
-                r"[\u0900-\u097F]",
-                text,
-            )
-        )
-
-        if contains_hindi:
+        # Preserve Hindi-script text.
+        if re.search(r"[\u0900-\u097F]", text):
 
             print(f"Normalized : {text}")
 
             return text
 
-        # -------------------------------------------------
-        # 4. English / Hinglish processing
-        # -------------------------------------------------
-
+        # Remove punctuation.
         text = re.sub(
             r"[^\w\s]",
             " ",
@@ -274,12 +251,7 @@ class IntentEngine:
             text,
         ).strip()
 
-        # Special Google Hinglish structure.
-        #
-        # google par demon slayer search karo
-        # google pe demon slayer search karo
-        #
-        # -> search google demon slayer
+        # Special Hinglish Google search.
         google_hinglish = re.match(
             r"^google\s+(?:par|pe)\s+(.+?)\s+search(?:\s+(?:karo|kar|kr))?$",
             text,
@@ -293,7 +265,6 @@ class IntentEngine:
 
         else:
 
-            # Longer phrases first.
             for old, new in sorted(
                 self.PHRASE_REPLACEMENTS.items(),
                 key=lambda item: len(item[0]),
@@ -312,7 +283,6 @@ class IntentEngine:
             text,
         ).strip()
 
-        # Individual word cleanup.
         words = []
 
         for word in text.split():
@@ -330,7 +300,6 @@ class IntentEngine:
 
         text = " ".join(words)
 
-        # Prevent duplicate command words.
         text = re.sub(
             r"\bopen\s+open\b",
             "open",
@@ -348,10 +317,6 @@ class IntentEngine:
             " ",
             text,
         ).strip()
-
-        # -------------------------------------------------
-        # 5. Fuzzy-correct known English words
-        # -------------------------------------------------
 
         final_words = []
 
