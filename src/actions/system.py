@@ -3,6 +3,7 @@ Local Windows actions.
 No shell commands are constructed from voice input.
 """
 
+import ctypes
 import os
 import subprocess
 from pathlib import Path
@@ -36,6 +37,13 @@ class SystemActions:
         "explorer": ["explorer.exe"],
     }
 
+    # Windows multimedia keys
+    VK_VOLUME_MUTE = 0xAD
+    VK_VOLUME_DOWN = 0xAE
+    VK_VOLUME_UP = 0xAF
+
+    KEYEVENTF_KEYUP = 0x0002
+
     def __init__(self):
 
         self.launcher = LauncherIndex()
@@ -58,26 +66,101 @@ class SystemActions:
 
         return count
 
+    # ---------------------------------------------------------
+    # Volume controls
+    # ---------------------------------------------------------
+
+    @staticmethod
+    def _press_media_key(key_code: int):
+
+        ctypes.windll.user32.keybd_event(
+            key_code,
+            0,
+            0,
+            0,
+        )
+
+        ctypes.windll.user32.keybd_event(
+            key_code,
+            0,
+            SystemActions.KEYEVENTF_KEYUP,
+            0,
+        )
+
+    def volume_up(self) -> bool:
+
+        try:
+
+            self._press_media_key(
+                self.VK_VOLUME_UP
+            )
+
+            print("Volume increased.")
+
+            return True
+
+        except Exception as error:
+
+            print(
+                f"Could not increase volume: {error}"
+            )
+
+            return False
+
+    def volume_down(self) -> bool:
+
+        try:
+
+            self._press_media_key(
+                self.VK_VOLUME_DOWN
+            )
+
+            print("Volume decreased.")
+
+            return True
+
+        except Exception as error:
+
+            print(
+                f"Could not decrease volume: {error}"
+            )
+
+            return False
+
+    def toggle_mute(self) -> bool:
+
+        try:
+
+            self._press_media_key(
+                self.VK_VOLUME_MUTE
+            )
+
+            print("Mute toggled.")
+
+            return True
+
+        except Exception as error:
+
+            print(
+                f"Could not toggle mute: {error}"
+            )
+
+            return False
+
+    # ---------------------------------------------------------
+    # App / launcher controls
+    # ---------------------------------------------------------
+
     def open_named_item(self, name: str):
         """
         Open an indexed Start Menu shortcut,
         executable, URL shortcut, or discovered item.
 
         If the item is not currently found, refresh the
-        launcher once and try again. This allows newly
-        installed applications to be discovered without
-        continuously scanning the system.
+        launcher once and try again.
         """
 
-        # -----------------------------------------------------
-        # First search
-        # -----------------------------------------------------
-
         target, match, score = self.launcher.find(name)
-
-        # -----------------------------------------------------
-        # Automatic refresh on miss
-        # -----------------------------------------------------
 
         if target is None or score < 72:
 
@@ -90,10 +173,6 @@ class SystemActions:
 
             target, match, score = self.launcher.find(name)
 
-        # -----------------------------------------------------
-        # Still not found
-        # -----------------------------------------------------
-
         if target is None or score < 72:
 
             print(
@@ -102,10 +181,6 @@ class SystemActions:
             )
 
             return False, None
-
-        # -----------------------------------------------------
-        # Open discovered target
-        # -----------------------------------------------------
 
         try:
 

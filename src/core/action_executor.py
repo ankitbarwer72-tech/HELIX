@@ -86,7 +86,27 @@ class ActionExecutor:
             self.browser.youtube_search(data)
             return f"Searching YouTube for {data}."
 
-        # ---------- System ----------
+        # ---------- System: Volume ----------
+
+        elif action == "volume_up":
+            if self.system.volume_up():
+                return "Volume increased."
+
+            return "I could not increase the volume."
+
+        elif action == "volume_down":
+            if self.system.volume_down():
+                return "Volume decreased."
+
+            return "I could not decrease the volume."
+
+        elif action == "toggle_mute":
+            if self.system.toggle_mute():
+                return "Mute toggled."
+
+            return "I could not toggle mute."
+
+        # ---------- System: Apps / Folders ----------
 
         elif action == "open_folder":
             self.system.open_folder(data)
@@ -108,6 +128,8 @@ class ActionExecutor:
             count = self.system.refresh_launcher()
             return f"Launcher refreshed. Found {count} apps."
 
+        # ---------- Help ----------
+
         elif action == "help":
 
             message = (
@@ -118,6 +140,8 @@ class ActionExecutor:
             print(message)
 
             return message
+
+        # ---------- Shutdown ----------
 
         elif action == "shutdown":
             print("Goodbye Boss.")

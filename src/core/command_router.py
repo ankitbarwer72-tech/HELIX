@@ -42,6 +42,39 @@ class CommandRouter:
         "explorer": "explorer",
     }
 
+    VOLUME_COMMANDS = {
+        "volume up": "volume_up",
+        "increase volume": "volume_up",
+        "raise volume": "volume_up",
+        "turn up volume": "volume_up",
+        "volume badha do": "volume_up",
+        "volume badha": "volume_up",
+        "awaz badha do": "volume_up",
+        "awaaz badha do": "volume_up",
+        "sound badha do": "volume_up",
+
+        "volume down": "volume_down",
+        "decrease volume": "volume_down",
+        "lower volume": "volume_down",
+        "turn down volume": "volume_down",
+        "volume kam karo": "volume_down",
+        "volume kam": "volume_down",
+        "awaz kam karo": "volume_down",
+        "awaaz kam karo": "volume_down",
+        "sound kam karo": "volume_down",
+
+        "mute": "toggle_mute",
+        "mute do": "toggle_mute",
+        "mute volume": "toggle_mute",
+        "mute sound": "toggle_mute",
+        "mute kar do": "toggle_mute",
+        "mute karo": "toggle_mute",
+        "sound mute karo": "toggle_mute",
+        "unmute": "toggle_mute",
+        "unmute volume": "toggle_mute",
+        "unmute sound": "toggle_mute",
+    }
+
     SIMPLE_COMMANDS = {
         "open youtube": "open_youtube",
         "open google": "open_google",
@@ -65,7 +98,17 @@ class CommandRouter:
         if not command:
             return "empty", None
 
+        # -------------------------------------------------
+        # Volume controls
+        # -------------------------------------------------
+
+        if command in self.VOLUME_COMMANDS:
+            return self.VOLUME_COMMANDS[command], None
+
+        # -------------------------------------------------
         # YouTube search
+        # -------------------------------------------------
+
         for prefix in (
             "search youtube for ",
             "youtube search ",
@@ -84,31 +127,22 @@ class CommandRouter:
 
         google_search_patterns = [
 
-            # search for demon slayer on google
             r"^search\s+for\s+(.+?)\s+on\s+google$",
 
-            # search demon slayer on google
             r"^search\s+(.+?)\s+on\s+google$",
 
-            # search google for demon slayer
             r"^search\s+google\s+for\s+(.+)$",
 
-            # search google demon slayer
             r"^search\s+google\s+(.+)$",
 
-            # google search demon slayer
             r"^google\s+search\s+(.+)$",
 
-            # google for demon slayer search
             r"^google\s+for\s+(.+?)\s+search$",
 
-            # google for a demon slayer search
             r"^google\s+for\s+(?:a\s+)?(.+?)\s+search$",
 
-            # google par demon slayer search
             r"^google\s+par\s+(.+?)\s+search$",
 
-            # google pe demon slayer search
             r"^google\s+pe\s+(.+?)\s+search$",
         ]
 
@@ -123,14 +157,12 @@ class CommandRouter:
 
                 query = match.group(1).strip()
 
-                # Remove accidental leading "a".
                 query = re.sub(
                     r"^a\s+",
                     "",
                     query,
                 ).strip()
 
-                # Correct common Whisper phrase.
                 query = query.replace(
                     "demons layer",
                     "demon slayer",
@@ -139,7 +171,10 @@ class CommandRouter:
                 if query:
                     return "google_search", query
 
+        # -------------------------------------------------
         # Generic search
+        # -------------------------------------------------
+
         for prefix in (
             "search for ",
             "search ",
@@ -152,15 +187,24 @@ class CommandRouter:
                 if query:
                     return "google_search", query
 
+        # -------------------------------------------------
         # Refresh launcher
+        # -------------------------------------------------
+
         if command == "refresh apps":
             return "refresh_launcher", None
 
+        # -------------------------------------------------
         # Simple commands
+        # -------------------------------------------------
+
         if command in self.SIMPLE_COMMANDS:
             return self.SIMPLE_COMMANDS[command], None
 
+        # -------------------------------------------------
         # Open request
+        # -------------------------------------------------
+
         target = self._open_request(command)
 
         if target in self.FOLDERS:
@@ -172,7 +216,10 @@ class CommandRouter:
         if target:
             return "open_named_item", target
 
+        # -------------------------------------------------
         # Fuzzy simple command matching
+        # -------------------------------------------------
+
         action, score = self._best_simple_match(command)
 
         if score >= 85:
@@ -198,7 +245,13 @@ class CommandRouter:
         best_action = None
         best_score = 0
 
-        for phrase, action in self.SIMPLE_COMMANDS.items():
+        # Include volume commands in fuzzy matching too.
+        phrases = {
+            **self.SIMPLE_COMMANDS,
+            **self.VOLUME_COMMANDS,
+        }
+
+        for phrase, action in phrases.items():
 
             if fuzz:
 
