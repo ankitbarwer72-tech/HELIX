@@ -69,6 +69,11 @@ class IntentEngine:
 
     PHRASE_REPLACEMENTS = {
 
+        "and mute": "unmute",
+        "and muted": "unmute",
+        "un mute": "unmute",
+        "on mute": "unmute",
+
         "you tube": "youtube",
         "your tube": "youtube",
         "utube": "youtube",
